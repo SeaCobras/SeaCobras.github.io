@@ -1,0 +1,22 @@
+mix_in
+  # Adding songs to the database
+  song "Lose Yourself", "Eminem", 171.0, "1A", Rap
+  song "Levels", "Avicii", 126.0, "2A", EDM
+  song "Old Town Road", "Lil Nas X", 136.0, "5A", HipHop
+  song "Jolene", "Dolly Parton", 110.0, "7B", Country
+
+  # Organizing all songs by BPM
+  organizeAll(bpm)
+
+  # Organizing all songs by key
+  organizeAll(key)
+
+  # Organizing Rap songs by artist
+  organizeGenre(Rap, artist)
+
+  analyze("trip.mp3", bars=16)
+
+
+  scratch("Old Town Road")
+
+mix_out

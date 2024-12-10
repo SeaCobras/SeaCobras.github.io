@@ -1,0 +1,34 @@
+Program:
+    'mix_in'
+    commands+=Command*
+    'mix_out';
+
+Command:
+    Song | SearchCommand | AnalyzeCommand | OrganizeAllCommand | OrganizeGenreCommand | ScratchCommand;
+
+Song:
+    'song' name=STRING ',' artist=STRING ',' bpm=FLOAT ',' key=STRING ',' genre=Genre;
+
+SearchCommand:
+    'search' '(' name=STRING ')';
+
+AnalyzeCommand:
+    'analyze' '(' file_path=STRING ',' bpm=FLOAT (',' bars=INT)? ')';
+
+OrganizeAllCommand:
+    'organizeAll' '(' identifier=Identifier ')';
+
+OrganizeGenreCommand:
+    'organizeGenre' '(' genre=Genre ',' identifier=Identifier ')';
+
+ScratchCommand:
+    'scratch' '(' name=STRING ')';
+
+Identifier:
+    'bpm' | 'song name' | 'artist' | 'key';
+
+Genre:
+    'Rap' | 'EDM' | 'HipHop' | 'Country';
+
+Comment:
+    /#.*$/;
