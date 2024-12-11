@@ -4,16 +4,19 @@ Program:
     'mix_out';
 
 Command:
-    Song | SearchCommand | AnalyzeCommand | OrganizeAllCommand | OrganizeGenreCommand | ScratchCommand;
+    Song | SearchCommand | AnalyzeCommand | OrganizeAllCommand | OrganizeGenreCommand | ScratchCommand | AddAudioCommand | SetCommand | ShoutCommand | IfStatement | SpinStatement | Assignment;
 
 Song:
-    'song' name=STRING ',' artist=STRING ',' bpm=FLOAT ',' key=STRING ',' genre=Genre;
+    'song' '=' name=STRING ',' artist=STRING ',' category=Genre ',' file=STRING;
+
+Genre:
+    "EDM" | "Rap" | "HipHop" | "Country";
 
 SearchCommand:
     'search' '(' name=STRING ')';
 
 AnalyzeCommand:
-    'analyze' '(' file_path=STRING ',' bpm=FLOAT (',' bars=INT)? ')';
+    'bestMix' '(' (song_name=STRING | file_path=STRING) (',' 'bars=' INT)? ')';
 
 OrganizeAllCommand:
     'organizeAll' '(' identifier=Identifier ')';
@@ -24,11 +27,50 @@ OrganizeGenreCommand:
 ScratchCommand:
     'scratch' '(' name=STRING ')';
 
+AddAudioCommand:
+    'addAudio' '(' song_name=STRING ',' file_path=STRING ')';
+
+SetCommand:
+    'set' name=ID '=' expression=Expression;
+
+ShoutCommand:
+    'shout' '(' expression=Expression ')';
+
+SpinStatement:
+    'spin' '(' condition=Condition ')' '{' commands+=Command* '}';
+
+IfStatement:
+    'if' '(' init=SetCommand ';' condition=Condition ';' iteration=Assignment ')' '{' commands+=Command* '}';
+
+Assignment:
+    name=ID '=' expression=Expression;
+
+Condition:
+    left=Expression operator=ComparisonOperator right=Expression;
+
+ComparisonOperator:
+    '<' | '>' | '<=' | '>=' | '==' | '!=';
+
+Expression:
+    BinaryOperation | Term;
+
+BinaryOperation:
+    left=Term operator=Operator right=Term;
+
+Term:
+    Value | '(' Expression ')';
+
+Value:
+    FLOAT | INT | STRING | BOOLEAN | ID;
+
+Operator:
+    '+' | '-' | '*' | '/';
+
+BOOLEAN:
+    "true" | "false";
+
 Identifier:
     'bpm' | 'song name' | 'artist' | 'key';
-
-Genre:
-    'Rap' | 'EDM' | 'HipHop' | 'Country';
 
 Comment:
     /#.*$/;

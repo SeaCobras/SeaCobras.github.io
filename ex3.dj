@@ -1,0 +1,17 @@
+mix_in
+
+    song = "Trip", "John Summit", EDM, "trip.mp3"
+    song = "Pick up the Phone", "PAWSA", EDM, "pickup_phone.mp3"
+    song = "Just Feels Tight", "Fisher", EDM, "just_feels_tight.mp3"
+
+    set i = 5
+    
+    spin(i < 5){
+        shout("i = " + i)
+    }
+
+    if(set j = 0; j < 5; j = j + 1){
+        shout("j = " + j)
+    }
+
+mix_out

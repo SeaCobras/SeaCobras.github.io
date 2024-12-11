@@ -30,75 +30,62 @@ def split_into_segments(data, sample_rate, bpm, bars=8, max_segments=50):
     samples_per_bar = int((60 / bpm) * sample_rate)
     samples_per_segment = samples_per_bar * bars
     n_segments = len(data) // samples_per_segment
-    n_segments = min(n_segments, max_segments)  # Limit to max_segments
-    print(f"Splitting data into {n_segments} segments, each {samples_per_segment} samples long.")
+    n_segments = min(n_segments, max_segments) 
     return [data[i * samples_per_segment:(i + 1) * samples_per_segment] for i in range(n_segments)]
 
 
 def calculate_repetitiveness(segment, sample_rate, max_lags=100, debug=False):
     """
-    Calculate repetitiveness of a segment using harmonic-percussive separation and combined metrics:
-    - Autocorrelation for temporal repetition
-    - Frequency analysis for steady patterns
-    - Beat strength for rhythmic regularity
+    Analyes segments in terms of repetitiveness, vocal intensity and loudness
     """
     if len(segment) == 0:
-        return float("-inf")  # Invalid segment
+        return float("-inf") 
 
-    if debug:
-        print(f"Analyzing segment of size {len(segment)} samples.")
 
-    # Convert to librosa-compatible format (float32)
     segment = segment.astype(np.float32) / np.max(np.abs(segment))
 
-    # Perform harmonic-percussive separation
-    percussive = librosa.effects.hpss(segment)[1]
+    harmonic, percussive = librosa.effects.hpss(segment)
 
-    # Downsample percussive component for performance
-    downsample_factor = 10
-    percussive = percussive[::downsample_factor]
+    vocal_intensity = np.sum(np.abs(harmonic)) / (np.sum(np.abs(harmonic)) + np.sum(np.abs(percussive)))
 
-    # Normalize segment
-    percussive = percussive - np.mean(percussive)
+    rms_energy = np.mean(librosa.feature.rms(y=segment))
 
-    # 1. Autocorrelation Metric
+    percussive = percussive[::10]
+    percussive -= np.mean(percussive)
+
+   
     autocorr = correlate(percussive, percussive, mode='full', method='auto')
     autocorr = autocorr[len(autocorr) // 2:len(autocorr) // 2 + max_lags]
-    autocorr /= np.max(np.abs(autocorr))  # Normalize
-    autocorr_score = np.sum(autocorr[1:])  # Ignore lag-0
+    autocorr /= np.max(np.abs(autocorr)) 
+    autocorr_score = np.sum(autocorr[1:])  
 
-    # 2. Frequency Domain Metric (FFT)
     freqs = fft(percussive)
     magnitude = np.abs(freqs)
-    freq_range = magnitude[:len(magnitude) // 2]  # Use positive frequencies
-    freq_score = np.sum(freq_range[100:1000])  # Focus on 60Hz–2kHz range
+    freq_score = np.sum(magnitude[100:1000])  
 
-    # 3. Beat Strength Metric
     onset_env = librosa.onset.onset_strength(y=percussive, sr=sample_rate)
     beat_strength = np.mean(onset_env)
 
-    # Combine Metrics
     repetitiveness_score = autocorr_score + freq_score * 0.5 + beat_strength * 0.5
 
-    if debug:
-        print(f"Autocorr Score: {autocorr_score:.2f}, Freq Score: {freq_score:.2f}, Beat Strength: {beat_strength:.2f}")
-        print(f"Combined Repetitiveness Score: {repetitiveness_score:.2f}")
+    final_score = (
+        repetitiveness_score * 0.5 
+        - vocal_intensity * 0.3   
+        - rms_energy * 0.2        
+    )
 
-    return repetitiveness_score
+    return final_score
 
 
 def analyze_segments_sequential(segments, sample_rate, debug=False):
     """
-    Analyze segments sequentially for repetitiveness.
+    Analyze segments for repetitiveness
     """
     results = []
-    print(f"Analyzing {len(segments)} segments sequentially...")
     for idx, segment in enumerate(segments):
         try:
-            print(f"Analyzing segment {idx + 1}/{len(segments)}...")
             result = calculate_repetitiveness(segment, sample_rate, debug=debug)
             results.append(result)
-            print(f"Segment {idx + 1} analyzed: Repetitiveness Score = {result:.2f}")
         except Exception as e:
             results.append(float("-inf"))
             print(f"Error analyzing segment {idx + 1}: {e}")
@@ -110,29 +97,55 @@ def format_time(seconds):
     remaining_seconds = seconds % 60
     return f"{minutes}:{remaining_seconds:05.2f}"
 
-
-def detect_bpm(input_file):
+def detect_bpm(input_file, max_duration=30.0, segment_count=5):
     try:
-        y, sr = librosa.load(input_file, sr=None)
-        tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
+        y, sr = librosa.load(input_file, sr=None, mono=True, duration=max_duration)
 
-        if isinstance(tempo, np.ndarray):  # Ensure tempo is scalar
-            tempo = float(tempo[0])
+        y_percussive = librosa.effects.percussive(y)
 
-        if tempo < 40:  # Validate BPM
-            print(f"Warning: Detected BPM {tempo:.2f} is unrealistically low. Using fallback.")
-            return 120.0  # Fallback default BPM
+        total_samples = len(y_percussive)
+        segment_size = total_samples // segment_count
+        bpm_values = []
 
-        return tempo
+        for i in range(segment_count):
+            start = i * segment_size
+            end = min((i + 1) * segment_size, total_samples)
+            segment = y_percussive[start:end]
+
+            onset_env = librosa.onset.onset_strength(y=segment, sr=sr, aggregate=np.median)
+
+            tempo, beat_frames = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
+            bpm_values.append(tempo)
+
+        refined_bpm = np.median(bpm_values)
+
+        beat_intervals = []
+        for tempo, segment in zip(bpm_values, range(segment_count)):
+            onset_env = librosa.onset.onset_strength(y=y_percussive, sr=sr, aggregate=np.median)
+            _, beat_frames = librosa.beat.beat_track(onset_envelope=onset_env, sr=sr)
+            beat_times = librosa.frames_to_time(beat_frames, sr=sr)
+            if len(beat_times) > 1:
+                intervals = np.diff(beat_times)
+                interval_tempo = 60.0 / np.mean(intervals)
+                beat_intervals.append(interval_tempo)
+
+        if beat_intervals:
+            refined_bpm = np.median(beat_intervals)
+
+        refined_bpm = round(refined_bpm, 1)
+        print(f"Detected BPM: {refined_bpm}")
+        return refined_bpm
+
     except Exception as e:
         print(f"Error detecting BPM: {e}")
-        return 120.0  # Fallback default BPM
+        return 120.0  
 
 
-def analyze_for_mix(input_file, bpm=None, bars=8):
+def bestMix_for_audio(input_file, bpm=None, bars=8):
+
     if bpm is None:
         bpm = detect_bpm(input_file)
-        if bpm < 40:  # Ensure valid BPM
+        if bpm < 40: 
             raise ValueError("Invalid BPM detected or provided.")
 
     print(f"Using BPM: {float(bpm):.2f}")
@@ -140,30 +153,28 @@ def analyze_for_mix(input_file, bpm=None, bars=8):
     wav_file = extract_audio_data(input_file)
     sample_rate, data = read_waveform(wav_file)
 
-    # Split into segments
     segments = split_into_segments(data, sample_rate, bpm, bars)
     if not segments:
         raise ValueError("Audio file is too short to create even a single segment.")
 
-    print(f"Analyzing {len(segments)} segments sequentially for debugging...")
 
-    # Sequentially analyze repetitiveness for debugging
     repetitiveness_scores = analyze_segments_sequential(segments, sample_rate, debug=True)
     most_repetitive_index = np.argmax(repetitiveness_scores)
 
     segment_length_seconds = len(segments[0]) / sample_rate
 
-    # Most repetitive segment
     repetitive_mix_in_seconds = most_repetitive_index * segment_length_seconds
-    repetitive_mix_out_seconds = repetitive_mix_in_seconds + segment_length_seconds
+    mix_out_duration_seconds = (32 / bpm) * 60 
+    repetitive_mix_out_seconds = repetitive_mix_in_seconds + mix_out_duration_seconds
+
     repetitive_mix_in_time = format_time(repetitive_mix_in_seconds)
     repetitive_mix_out_time = format_time(repetitive_mix_out_seconds)
 
     if os.path.exists(wav_file):
         os.remove(wav_file)
 
-    print("Mix Points:")
-    print(f"Most Repetitive Segment: Mix-in at {repetitive_mix_in_time}, Mix-out at {repetitive_mix_out_time}")
+    print("\nMix Points:")
+    print(f"Best Segment: Mix-in at {repetitive_mix_in_time}, Mix-out at {repetitive_mix_out_time}")
 
     return {
         "most_repetitive": {

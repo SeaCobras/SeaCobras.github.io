@@ -1,22 +1,12 @@
 mix_in
-  # Adding songs to the database
-  song "Lose Yourself", "Eminem", 171.0, "1A", Rap
-  song "Levels", "Avicii", 126.0, "2A", EDM
-  song "Old Town Road", "Lil Nas X", 136.0, "5A", HipHop
-  song "Jolene", "Dolly Parton", 110.0, "7B", Country
 
-  # Organizing all songs by BPM
+  song = "Trip", "John Summit", EDM, "trip.mp3"
+  song = "Pick up the Phone", "PAWSA", EDM, "pickup_phone.mp3"
+  song = "Just Feels Tight", "Fisher", EDM, "just_feels_tight.mp3"
+  song = "Sippin Yak Odd Mob Remix", "Odd Mob", EDM, "sippin_yak_remix.mp3"
+
   organizeAll(bpm)
 
-  # Organizing all songs by key
-  organizeAll(key)
-
-  # Organizing Rap songs by artist
-  organizeGenre(Rap, artist)
-
-  analyze("trip.mp3", bars=16)
-
-
-  scratch("Old Town Road")
+  bestMix("Pick up the Phone")
 
 mix_out

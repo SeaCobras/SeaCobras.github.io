@@ -1,0 +1,12 @@
+mix_in
+
+  song = "Trip", "John Summit", EDM, "trip.mp3"
+  song = "Pick up the Phone", "PAWSA", EDM, "pickup_phone.mp3"
+  song = "Just Feels Tight", "Fisher", EDM, "just_feels_tight.mp3"
+  song = "Sippin Yak Odd Mob Remix", "Odd Mob", EDM, "sippin_yak_remix.mp3"
+
+  organizeAll(bpm)
+
+  bestMix("Pick up the Phone")
+
+mix_out

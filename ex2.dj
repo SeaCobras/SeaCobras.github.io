@@ -1,0 +1,10 @@
+mix_in
+
+  song = "Trip", "John Summit", EDM, "trip.mp3"
+  song = "Pick up the Phone", "PAWSA", EDM, "pickup_phone.mp3"
+    
+    search("Trip")
+    scratch("Trip")
+    search("Trip")
+
+mix_out
